@@ -1,32 +1,47 @@
+from dotenv import load_dotenv
+load_dotenv()
+import os
 from jira import JIRA
+from getpass import getpass
 
-# Replace these with your Jira details
-JIRA_SERVER = 'https://yorkhackathonteam4.atlassian.net/'  # Your Jira instance URL
-EMAIL = 'yorkhackathonteam4@gmail.com'                   # Your Jira login email
-API_TOKEN = 'ATATT3xFfGF0wC7r1J3HB7kGYulggoJ7fdZ3NLzHEXwqxBZoyCYB-JQAdQVWoiqfaleo4cjo0qgmJ464KB2CUIGlZwbkVcJRmsJQNvTyoC73NUFUF0AmLKVXJNNHFbQlKbv3SZe4hHthzxm7KXP3rhjP5lD-fcPGUxYsp4H4cdm2EA1Fay8k6TE=8DFE29A6'
-                  # Your Jira API token (not password)
+def get_credentials():
+    """Load Jira credentials from environment or prompt user."""
+    server = os.getenv('JIRA_SERVER')
+    email = os.getenv('JIRA_EMAIL')
+    api_token = os.getenv('JIRA_API_TOKEN')
+    return server, email, api_token
 
-# Connect to Jira
-jira = JIRA(server=JIRA_SERVER, basic_auth=(EMAIL, API_TOKEN))
+def connect_to_jira(server, email, api_token):
+    """Connect to Jira and return a Jira instance."""
+    try:
+        jira = JIRA(server=server, basic_auth=(email, api_token))
+        return jira
+    except Exception as e:
+        print(f"Failed to connect to Jira: {e}")
+        exit(1)
 
-# Get all projects
-projects = jira.projects()
+def fetch_todo_issues_for_all_projects(jira):
+    """Fetch and print 'To Do' issues for all accessible projects."""
+    projects = jira.projects()
+    for project in projects:
+        project_key = project.key
+        print(f'\n--- "To Do" Issues in Project {project_key}: {project.name} ---')
 
-# Print project key and name
-for project in projects:
-    print(f"{project.key}: {project.name}")
+        jql_query = f'project = {project_key} AND status = "To Do" ORDER BY created DESC'
+        try:
+            issues = jira.search_issues(jql_query)
+            if not issues:
+                print("No 'To Do' issues found.")
+            else:
+                for issue in issues:
+                    print(f"{issue.key}: {issue.fields.summary}")
+        except Exception as e:
+            print(f"Failed to retrieve issues for project {project_key}: {e}")
 
+def main():
+    server, email, api_token = get_credentials()
+    jira = connect_to_jira(server, email, api_token)
+    fetch_todo_issues_for_all_projects(jira)
 
-# Project key
-project_key = 'WEAT'  # Replace with the actual project key
-
-# JQL query to get "To Do" issues in the project
-jql_query = f'project = {project_key} AND status = "To Do" ORDER BY created DESC'
-
-# Fetch issues
-issues = jira.search_issues(jql_query)
-
-# Print issue keys and summaries
-print(f'"To Do" issues in project {project_key}:')
-for issue in issues:
-    print(f"{issue.key}: {issue.fields.summary}")
+if __name__ == "__main__":
+    main()
